@@ -1,0 +1,12 @@
+[workspace]
+members = [
+  "crates/openeye-core",
+  "apps/openeye-cli"
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/lladawn/openeye"
+rust-version = "1.76"

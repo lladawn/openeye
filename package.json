@@ -1,0 +1,14 @@
+{
+  "name": "openeye",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "openeye": "./src/openeye.mjs"
+  },
+  "scripts": {
+    "demo": "node src/openeye.mjs demo",
+    "test": "node --test"
+  }
+}
+

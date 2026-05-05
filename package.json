@@ -7,8 +7,8 @@
     "openeye": "./src/openeye.mjs"
   },
   "scripts": {
+    "app": "node src/openeye.mjs app",
     "demo": "node src/openeye.mjs demo",
     "test": "node --test"
   }
 }
-

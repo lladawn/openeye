@@ -1,3 +1,5 @@
+// Core OpenEye domain logic: event shapes, default rule configuration,
+// alert evaluation, demo fixtures, and plain-English explanations.
 const SSH_EXFIL_WINDOW_MS = 5000;
 const ENV_EXFIL_WINDOW_MS = 10000;
 const RING_WINDOW_MS = 30000;
@@ -13,6 +15,7 @@ export const eventKinds = new Set([
 ]);
 
 export const defaultConfig = {
+  monitorAllProcesses: false,
   processNames: ["cursor", "claude", "claude-desktop", "codex", "python3", "node", "npm", "npx", "ollama"],
   walletPatterns: [
     "~/Library/Application Support/Google/Chrome/Default/Local Extension Settings/nkbihfbeogaeaoehlefnkodbefgpgknn",
@@ -31,11 +34,14 @@ export const defaultConfig = {
 };
 
 export class RuleEngine {
+  // Keeps a short per-process event history so single-event rules and
+  // temporal correlation rules can run through the same entry point.
   constructor(config = defaultConfig) {
     this.config = config;
     this.recentByPid = new Map();
   }
 
+  // Evaluates one normalized event and returns zero or more alerts.
   evaluate(event) {
     if (!this.matchesProcess(event.process)) {
       return [];
@@ -48,7 +54,12 @@ export class RuleEngine {
     return alerts;
   }
 
+  // Narrows monitoring to AI-related processes unless all-process mode is on.
   matchesProcess(process) {
+    if (this.config.monitorAllProcesses) {
+      return true;
+    }
+
     const name = String(process?.name || "").toLowerCase();
     const command = String(process?.command || "").toLowerCase();
     return name.includes("mcp") ||
@@ -56,6 +67,7 @@ export class RuleEngine {
       this.config.processNames.some((candidate) => name === candidate || command.includes(candidate));
   }
 
+  // Applies rules that can be decided from the current event alone.
   evaluateStateless(event, alerts) {
     if (event.kind === "FILE_READ") {
       if (isSshPrivateKey(event.target)) {
@@ -89,6 +101,7 @@ export class RuleEngine {
     }
   }
 
+  // Applies rules that require recent history from the same process.
   evaluateTemporal(event, alerts) {
     if (event.kind !== "NETWORK_CONNECT" && event.kind !== "NETWORK_SEND") {
       return;
@@ -103,6 +116,7 @@ export class RuleEngine {
     }
   }
 
+  // Stores only the recent event window needed by temporal rules.
   remember(event) {
     const recent = this.recentByPid.get(event.process.pid) || [];
     recent.push(event);
@@ -113,6 +127,7 @@ export class RuleEngine {
   }
 }
 
+// Parses the lightweight tab-separated ingestion format used by probes.
 export function parseEventLine(line) {
   const fields = Object.fromEntries(line.split("\t").filter(Boolean).map((part) => {
     const index = part.indexOf("=");
@@ -143,6 +158,7 @@ export function parseEventLine(line) {
   };
 }
 
+// Produces deterministic-looking synthetic activity for quick local demos.
 export function demoEvents() {
   const process = { pid: 4242, parentPid: 1, name: "cursor", command: "cursor-agent --workspace ~/Code/openeye" };
   const now = Date.now();
@@ -157,6 +173,7 @@ export function demoEvents() {
   ];
 }
 
+// Returns a safe local explanation for an alert rule without file contents.
 export function explain(rule) {
   return {
     SSH_KEY_EXFIL: "The process read a likely SSH private key, then contacted the network within five seconds. Treat this as possible credential theft until you verify the destination.",
@@ -167,23 +184,53 @@ export function explain(rule) {
   }[rule] || "This alert matched one of OpenEye's local rules. Review the process, target path or domain, and surrounding events before deciding whether to trust it.";
 }
 
+// Explains either an alert or a raw event selected in the dashboard.
+export function explainActivity(item) {
+  if (!item) {
+    return "No activity selected.";
+  }
+
+  if (item.rule) {
+    return explain(item.rule);
+  }
+
+  if (item.kind === "NETWORK_CONNECT" || item.kind === "NETWORK_SEND") {
+    return `${item.process?.name || "This process"} opened a network connection to ${item.target}. Check whether that destination matches what you expect from the app.`;
+  }
+
+  if (item.kind === "FILE_READ") {
+    return `${item.process?.name || "This process"} opened ${item.target}. OpenEye currently sees this through lsof snapshots, so it means the file was open at scan time rather than a guaranteed read syscall.`;
+  }
+
+  if (item.kind === "PROCESS_EXEC") {
+    return `${item.process?.name || "This process"} is running with command: ${item.detail || item.process?.command || "(unknown command)"}. Parent and child relationships help reveal helper processes or unexpected shells.`;
+  }
+
+  return `${item.process?.name || "This process"} produced ${item.kind || "an activity event"} targeting ${item.target || "(unknown target)"}.`;
+}
+
+// Creates a normalized event object for demos and tests.
 function event(id, timestampMs, process, kind, target, detail) {
   return { id, timestampMs, process, kind, target, detail, userInitiated: false };
 }
 
+// Creates the alert object consumed by CLI and dashboard renderers.
 function alert(rule, severity, event, description, recommendedAction) {
   return { rule, severity, process: event.process.name, target: event.target, description, recommendedAction };
 }
 
+// Detects likely private SSH key paths while ignoring public keys.
 function isSshPrivateKey(path) {
   const normalized = normalizePath(path);
   return normalized.includes("/.ssh/id_") && !normalized.endsWith(".pub");
 }
 
+// Detects exact .env filename reads without flagging similar names.
 function isEnvFile(path) {
   return normalizePath(path).split("/").pop() === ".env";
 }
 
+// Matches a normalized path against known sensitive directory prefixes.
 function matchesAny(path, patterns) {
   const normalized = normalizePath(path);
   return patterns.some((pattern) => {
@@ -192,8 +239,8 @@ function matchesAny(path, patterns) {
   });
 }
 
+// Expands ~/ and normalizes path separators for rule matching.
 function normalizePath(path) {
   const home = process.env.HOME || "";
   return String(path || "").replaceAll("\\", "/").replace(/^~(?=\/)/, home);
 }
-

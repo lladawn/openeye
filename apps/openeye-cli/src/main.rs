@@ -1,9 +1,13 @@
+// Rust CLI entry point for the production-path OpenEye command. It mirrors the
+// Node MVP CLI: replay a demo, ingest normalized probe events from stdin, and
+// explain alert rules without sending sensitive context anywhere.
 use std::io::{self, BufRead};
 use std::thread;
 use std::time::Duration;
 
 use openeye_core::{Alert, Config, Event, EventKind, ProcessInfo, RuleEngine, Severity};
 
+// Dispatches the requested subcommand and prints a compact error on failure.
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let command = args.get(1).map(String::as_str).unwrap_or("help");
@@ -24,6 +28,7 @@ fn main() {
     }
 }
 
+// Replays synthetic suspicious activity through the real Rust rule engine.
 fn run_demo() -> Result<(), String> {
     let mut engine = RuleEngine::new(Config::default());
     let process = ProcessInfo::new(4242, Some(1), "cursor", "cursor-agent --workspace ~/Code/openeye");
@@ -48,6 +53,7 @@ fn run_demo() -> Result<(), String> {
     Ok(())
 }
 
+// Reads tab-separated key=value events from stdin for external collectors.
 fn run_ingest() -> Result<(), String> {
     let stdin = io::stdin();
     let mut engine = RuleEngine::new(Config::default());
@@ -68,6 +74,7 @@ fn run_ingest() -> Result<(), String> {
     Ok(())
 }
 
+// Prints a local explanation for a rule name without including file contents.
 fn run_explain(rule: Option<&str>) -> Result<(), String> {
     let Some(rule) = rule else {
         return Err("usage: openeye explain RULE_NAME".into());
@@ -86,6 +93,7 @@ fn run_explain(rule: Option<&str>) -> Result<(), String> {
     Ok(())
 }
 
+// Converts one ingestion line into the core Event shape used by the rules.
 fn parse_event_line(line: &str) -> Result<Event, String> {
     let fields = split_key_values(line);
     let process = ProcessInfo::new(
@@ -129,6 +137,7 @@ fn parse_event_line(line: &str) -> Result<Event, String> {
     Ok(event)
 }
 
+// Parses the lightweight probe format: key=value pairs separated by tabs.
 fn split_key_values(line: &str) -> std::collections::HashMap<String, String> {
     line.split('\t')
         .filter_map(|part| part.split_once('='))
@@ -136,6 +145,7 @@ fn split_key_values(line: &str) -> std::collections::HashMap<String, String> {
         .collect()
 }
 
+// Prints a raw event in the terminal feed format.
 fn print_event(event: &Event, severity: Severity) {
     println!(
         "{} [{}] [{}:{}] {} {} {}",
@@ -149,6 +159,7 @@ fn print_event(event: &Event, severity: Severity) {
     );
 }
 
+// Prints an alert plus the recommended next action.
 fn print_alert(alert: &Alert) {
     println!(
         "{} [{}] [{}] {} -> {}",
@@ -161,6 +172,7 @@ fn print_alert(alert: &Alert) {
     println!("  action: {}", alert.recommended_action);
 }
 
+// Applies ANSI colors based on severity.
 fn color_label(label: &str, severity: &Severity) -> String {
     let code = match severity {
         Severity::Info => "32",
@@ -170,6 +182,7 @@ fn color_label(label: &str, severity: &Severity) -> String {
     format!("\x1b[{code}m[{label}]\x1b[0m")
 }
 
+// Shows available commands and a minimal ingestion example.
 fn print_help() {
     println!("OpenEye MVP");
     println!();
@@ -181,4 +194,3 @@ fn print_help() {
     println!("Ingest example:");
     println!("  kind=FILE_READ\tpid=42\tprocess=cursor\ttarget=/Users/me/.ssh/id_ed25519");
 }
-

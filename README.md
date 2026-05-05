@@ -7,12 +7,22 @@ The long-term product needs privileged macOS Endpoint Security and Network Exten
 ## Quick Start
 
 ```sh
+npm run app
+```
+
+Then open `http://127.0.0.1:3737`.
+
+The dashboard monitors real macOS process, file, and network snapshots using `ps` and `lsof`. It shows a live feed, alert inbox, active process activity, and plain-English explanations for selected items.
+
+For the synthetic rules demo:
+
+```sh
 npm run demo
 ```
 
 You should see a live stream of synthetic AI-agent activity, including warnings for `.env` access and critical alerts for SSH key, wallet, clipboard, and exfiltration patterns.
 
-The Rust workspace mirrors the intended production core, but the current local environment does not include a Rust toolchain. The Node CLI is the runnable MVP path for now.
+The Rust workspace mirrors the intended production core. If your shell does not see `cargo`, use `/Users/dawn/.cargo/bin/cargo`.
 
 ## Ingest Events
 
@@ -72,3 +82,9 @@ auditors/mcp-auditor      Manifest baseline and diff prototype
 The production collector should use Apple's Endpoint Security Framework for file and process events and Network Extension or PF-backed process tagging for network events. Development builds must be signed with `com.apple.developer.endpoint-security.client`; distribution requires Apple approval.
 
 Until that entitlement is available, external probes can feed normalized events into `openeye ingest`.
+
+Current best-effort collector limits:
+
+- `lsof` snapshots show files and sockets open at scan time, not every read/write syscall.
+- Some system or other-user process details may be hidden unless OpenEye is run with elevated permissions.
+- Clipboard owner detection and complete per-packet payload inspection require native macOS APIs that are not available to a plain Node process.

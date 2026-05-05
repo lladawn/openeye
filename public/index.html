@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OpenEye</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div>
+          <h1>OpenEye</h1>
+          <p id="status">Starting local monitor...</p>
+        </div>
+        <div class="toolbar">
+          <label class="toggle" title="Show OpenEye's own node, ps, and lsof activity">
+            <input type="checkbox" id="internalToggle">
+            <span>Internals</span>
+          </label>
+          <button class="icon-button" id="pauseButton" title="Pause live updates" aria-label="Pause live updates">II</button>
+          <button class="icon-button" id="clearButton" title="Clear current view" aria-label="Clear current view">X</button>
+        </div>
+      </header>
+
+      <section class="metrics" aria-label="Activity summary">
+        <div class="metric"><span id="processCount">0</span><label>Processes</label></div>
+        <div class="metric"><span id="eventCount">0</span><label>Events</label></div>
+        <div class="metric"><span id="networkCount">0</span><label>Network</label></div>
+        <div class="metric"><span id="fileCount">0</span><label>Files</label></div>
+        <div class="metric alert"><span id="alertCount">0</span><label>Alerts</label></div>
+      </section>
+
+      <main class="layout">
+        <section class="panel feed-panel">
+          <div class="panel-header">
+            <h2>Live Feed</h2>
+            <span id="hiddenNote" class="hidden-note"></span>
+            <div class="filters">
+              <input id="searchInput" placeholder="Filter process, path, or domain">
+              <select id="kindFilter" aria-label="Filter event type">
+                <option value="">All activity</option>
+                <option value="FILE">Files</option>
+                <option value="NETWORK">Network</option>
+                <option value="ALERT">Alerts</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Process</th>
+                  <th>Activity</th>
+                  <th>Target</th>
+                </tr>
+              </thead>
+              <tbody id="feedRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <aside class="side">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Alerts</h2>
+            </div>
+            <div id="alertList" class="stack"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Processes</h2>
+            </div>
+            <div id="processList" class="stack compact"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Explanation</h2>
+            </div>
+            <p id="explanation" class="explanation">Select an event or alert to see what it means.</p>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

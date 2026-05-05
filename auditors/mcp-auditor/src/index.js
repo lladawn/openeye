@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// MCP manifest baseline/diff prototype. It records the list of tools a server
+// exposes and reports drift on later runs.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -37,6 +39,7 @@ if (diffs.length === 0) {
   fs.writeFileSync(baselinePath, JSON.stringify(manifest, null, 2));
 }
 
+// Loads a manifest file passed by --manifest.
 function readManifest(file) {
   if (!file) {
     console.error("missing --manifest file");
@@ -45,6 +48,7 @@ function readManifest(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
+// Provides a stable manifest for smoke-testing the baseline flow.
 function demoManifest() {
   return {
     server: "demo-mcp",
@@ -55,6 +59,7 @@ function demoManifest() {
   };
 }
 
+// Compares tools by name and serialized definition to catch added/removed drift.
 function diffTools(previous, current) {
   const before = new Map((previous.tools || []).map((tool) => [tool.name, JSON.stringify(tool)]));
   const after = new Map((current.tools || []).map((tool) => [tool.name, JSON.stringify(tool)]));
@@ -77,6 +82,7 @@ function diffTools(previous, current) {
   return diffs;
 }
 
+// Chooses a writable state directory, falling back to the workspace in sandboxes.
 function resolveStateDir() {
   if (process.env.OPENEYE_STATE_DIR) {
     return process.env.OPENEYE_STATE_DIR;
